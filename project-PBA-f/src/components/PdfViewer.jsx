@@ -1,0 +1,51 @@
+import { useEffect, useState } from 'react';
+import { Document, Page, pdfjs } from 'react-pdf';
+import getFileUrl from "../utils/getFileUrl"
+import worker from "pdfjs-dist/build/pdf.worker?url";
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+pdfjs.GlobalWorkerOptions.workerSrc = worker;
+
+export default function PdfViewer({ file }) {
+    const [page, setPage] = useState(1);
+    const [pageNum, setPageNum] = useState(1);
+    
+    const onLoadSuccess = ({ numPages }) => {
+        setPageNum(numPages);
+    };
+
+    const fileUrl = getFileUrl(file);
+
+    function goBack(){
+        setPage((cur)=>Math.max(cur-1,1));
+    }
+    function goNext(){
+        setPage((cur)=>Math.min(cur+1,pageNum));
+    }
+    useEffect(()=>{
+        setPage(1);
+        setPageNum(1);
+    },[file]);
+
+    return (
+        <div>
+            <h2 style={{ "margin": "0 0 20px 0" }}>원본 pdf (비교용)</h2>
+            <Document file={fileUrl} onLoadSuccess={onLoadSuccess}>
+                <Page pageNumber={page} />
+            </Document>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', margin: '20px 0',"justifyContent":"center" }}>
+                <button onClick={goBack} disabled={page <= 1}>
+                    이전
+                </button>
+                <span>
+                    {page} / {pageNum}
+                </span>
+                <button onClick={goNext} disabled={page >= pageNum}>
+                    다음
+                </button>
+            </div>
+        </div>
+    );
+}
