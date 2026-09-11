@@ -1,25 +1,72 @@
-import { useState } from "react";
+import {useState } from "react";
 import FileSelector from "../components/FileSelector";
 import SummaryViewer from "../components/SummaryViewer";
-import { validatePdf } from "../utils/validatePdf";
-import { reqeustSummary } from "../api/requestSummary";
+import { requestSummary } from "../api/requestSummary";
 import PdfViewer from "../components/PdfViewer";
+import axios from "axios"
+import downloadSummary from "../utils/downloadSummary";
 
 export function MainPage(){
     const [file,setFile] = useState(null);
     const [content,setContent] = useState("요약할 문서를 업로드해주세요.");
     const [status, setStatus] = useState(0);
+    const [wait,setWait] = useState(0);
     //코드 / 0:기본 / 1: 업로드 후 대기 / 2: 요약 성공 /3: 오류
 
+    function increaseWait(){
+        const waitInterval = setInterval(()=>{
+            setWait((cur)=>(cur+1));
+        },1000)
+
+        return waitInterval
+    }
+
+
     async function requestUpload(){
+        const waitInterval = increaseWait();
         try {
-            setContent("파일 유효성 검사 통과, 로딩중...");
-            const response = await reqeustSummary(file);
-            setContent(response.data.summary);
+            setContent(`파일 유효성 검사 통과, 로딩중...`);
+            setStatus(1);
+            const response = await requestSummary(file);
+            if(!response.data || !response.data.summary){
+                //error를 발생시켜 catch 문에서 오류 메시지 처리
+                throw new Error("서버 데이터 응답 형식이 올바르지 않습니다.")
+            }
+
+            //성공한 경우
+            const responseSummary = response.data.summary
+            downloadSummary(responseSummary,file.name);
+            setContent(responseSummary);
             setStatus(2);
         } catch (error) {
-            setContent(`${error.name}: ${error.message}`); //디버그용, 추후 변경사항
             setStatus(3);
+            if(axios.isAxiosError(error)){
+                if(error.response){
+                    const statusCode = error.response.status;
+                    if(statusCode == 400){
+                        setContent("잘못된 요청입니다.");
+                    }
+                    else if(statusCode == 401 || statusCode == 403){
+                        setContent("권한이 없습니다.");
+                    }
+                    else if(statusCode >= 500){
+                        setContent("서버 내부 오류입니다. 관리자에게 문의해주세요.");
+                    }
+                    else{
+                        setContent("요청에 실패했습니다.");
+                    }
+                }
+                else if(error.request){
+                    setContent("요청을 보냈으나, 서버로부터 응답을 받지 못했습니다.");
+                }
+            }
+            else{
+                setContent("알 수 없는 오류가 발생했습니다.");
+            }
+        }
+        finally{
+            setWait(0);
+            clearInterval(waitInterval);
         }
     }
     
@@ -35,6 +82,7 @@ export function MainPage(){
                 {file && <button style={{"width":"70px"}} onClick={requestUpload} disabled ={file && status==1}>요약 시작</button>}
             </div>
             {status==2 && <h2>요약결과</h2>}
+            {status ==1 && <h3>대기시간: {wait}</h3>}
             <SummaryViewer content ={content}/>
             {file && <PdfViewer file={file}/>}
         </div>
