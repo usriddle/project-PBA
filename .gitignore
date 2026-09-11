@@ -137,3 +137,4 @@ dist
 
 #추가 ignore
 .venv
+__pycache__
