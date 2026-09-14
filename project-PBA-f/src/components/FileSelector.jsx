@@ -11,6 +11,7 @@ export default function FileSelector({ setFile, setContent,setStatus }) {
         setContent(validateResult.message);
         if(validateResult.code>0){
             setFile(file);
+            setStatus(0);
         }
         else{
           setFile(null);

@@ -17,6 +17,7 @@ export const ALLOW_IMAGE_TYPES = [
 export function MainPage(){
     const [file, setFile] = useState(null);
     const [content, setContent] = useState("요약할 문서를 업로드해주세요.");
+    //코드 / 0:기본 / 1: 업로드 후 대기 / 2: 요약 성공 /3: 오류
     const [status, setStatus] = useState(0);
     const [wait, setWait] = useState(0);
     const [duration, setDuration] = useState(0);
