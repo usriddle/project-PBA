@@ -1,6 +1,7 @@
 import httpx
 from app.schemas import SummarizeResponse
 from app.ocr import run_ocr
+from app.preprocessing import text_preprocess
 from fastapi import File, UploadFile
 
 OLLAMA_CHAT_URL = (
@@ -41,16 +42,18 @@ def call_ollama(system_instructions: str, message: str, think_mode: bool) -> str
 
 def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
     text = run_ocr(file)
+    text = text_preprocess(text)
+    # 역할, 목표, 제약 사항, 출력 요구 사항
     summary = call_ollama(
         """
-        Role: You are a document summarization assistant.
-        Task: Summarize the document concisely in fluent Korean.
-        Constraints: 
-        - Do not respond in Chinese, Japanese, or English.
-        - Do not invent information.
+        Role: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
+        Task: 문서의 핵심 내용을 간결하고 정확한 한국어로 요약합니다.
+        Constraints:
+        - 중국어, 일본어, 영어로 응답하지 않습니다.
+        - 원문에 없는 내용을 임의로 추가하거나 추측하지 않습니다.
         Output Requirements:
-        - Preserve important facts and information from the original document.
-        - Response in natural, professional Korean.
+        - 원문의 중요한 사실과 정보를 빠짐없이 반영합니다.
+        - 자연스럽고 전문적인 한국어로 작성합니다.
         """,
         text,
         False
