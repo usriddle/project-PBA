@@ -26,7 +26,7 @@ def call_ollama(system_instructions: str, message: str, think_mode: bool) -> str
 
     try:
         # ollama에게 request json으로 전달
-        response = httpx.post(OLLAMA_CHAT_URL, json=payload, timeout=180.0)
+        response = httpx.post(OLLAMA_CHAT_URL, json=payload, timeout=2400.0)
         # 전달 사항 확인
         response.raise_for_status()
         # JSON 내용을 dictionary로 변경
