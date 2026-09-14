@@ -4,7 +4,7 @@ export default function FileSelector({ setFile, setContent,setStatus }) {
   return (
     <input
       type="file"
-      accept="application/pdf"
+      accept="application/pdf,image/png,image/jpeg,image/jpg,image/webp"
       onChange={(event) => {
         const file = event.target.files?.[0] ?? null;
         const validateResult = validatePdf(file);
