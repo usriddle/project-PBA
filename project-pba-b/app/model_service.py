@@ -42,7 +42,16 @@ def call_ollama(system_instructions: str, message: str, think_mode: bool) -> str
 def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
     text = run_ocr(file)
     summary = call_ollama(
-        "You are a helpful assistant that summarizes documents in fluent Korean.",
+        """
+        Role: You are a document summarization assistant.
+        Task: Summarize the document concisely in fluent Korean.
+        Constraints: 
+        - Do not respond in Chinese, Japanese, or English.
+        - Do not invent information.
+        Output Requirements:
+        - Preserve important facts and information from the original document.
+        - Response in natural, professional Korean.
+        """,
         text,
         False
     )
