@@ -1,4 +1,5 @@
 import httpx
+import time
 from app.schemas import SummarizeResponse
 from app.ocr import run_ocr
 from app.preprocessing import text_preprocess
@@ -10,8 +11,7 @@ OLLAMA_CHAT_URL = (
 
 MODEL_NAME = "qwen2.5:7b-instruct"
 
-# 
-def call_ollama(system_instructions: str, message: str, think_mode: bool) -> str:
+def call_ollama(system_instructions: str, message: str, output_token: int) -> str:
     payload = {
         "model": MODEL_NAME, 
         # 시스템 지침과 사용자 입력 전달
@@ -20,8 +20,8 @@ def call_ollama(system_instructions: str, message: str, think_mode: bool) -> str
             { "role": "user", "content": message }
         ],
         "stream": False, # 스트리밍 설정: 비활성화
-        "think": think_mode, # 추가 추론 설정
-        "options": {"num_predict": 500}, # 최대 Token 설정: 500
+        "think": False, # 추가 추론 설정: 비활성화
+        "options": {"num_predict": output_token}, # 최대 출력 Token 설정
     }
 
     try:
@@ -40,22 +40,132 @@ def call_ollama(system_instructions: str, message: str, think_mode: bool) -> str
     except httpx.HTTPError as e:
         raise RuntimeError(f"Ollama call failed: {e}")
 
-def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
-    text = run_ocr(file)
-    text = text_preprocess(text)
+# summarize
+def summarize_main(file: UploadFile = File(...)) -> SummarizeResponse:
     # 역할, 목표, 제약 사항, 출력 요구 사항
+    instructions = """
+            Role: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
+            Task: 문서의 핵심 내용을 간결하고 정확한 한국어로 요약합니다.
+            Constraints:
+            - 중국어, 일본어, 영어로 응답하지 않습니다.
+            - 원문에 없는 내용을 임의로 추가하거나 추측하지 않습니다.
+            - 지나치게 길게 이어지는 문장을 사용하지 않습니다.
+            Output Requirements:
+            - 원문의 중요한 사실과 정보를 빠짐없이 반영합니다.
+            - 자연스럽고 전문적인 한국어로 작성합니다.
+            - 출력 내용이 길 경우 여러 문단으로 나누어 작성합니다.
+    """
+
+    start = time.perf_counter()
+
+    ocr_start = time.perf_counter()
+    ocr_text = run_ocr(file) # ocr 실행
+    ocr_time = time.perf_counter() - ocr_start
+
+    preprocessed_text = text_preprocess(ocr_text) # 전처리 실행
+
+    ai_start = time.perf_counter()
     summary = call_ollama(
-        """
+        instructions,
+        preprocessed_text,
+        500
+    )
+    ai_time = time.perf_counter() - ai_start
+    total_time = time.perf_counter() - start
+
+    # OCR 및 모델 처리 시간 출력
+    print(f"OCR: {ocr_time:.2f}s")
+    print(f"AI: {ai_time:.2f}s")
+    print(f"Total: {total_time:.2f}s")
+
+    return SummarizeResponse(model=MODEL_NAME, summary=summary)
+
+# summarize_chunk
+def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
+    instructions = """
         Role: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
         Task: 문서의 핵심 내용을 간결하고 정확한 한국어로 요약합니다.
         Constraints:
         - 중국어, 일본어, 영어로 응답하지 않습니다.
         - 원문에 없는 내용을 임의로 추가하거나 추측하지 않습니다.
+        - 지나치게 길게 이어지는 문장을 사용하지 않습니다.
         Output Requirements:
         - 원문의 중요한 사실과 정보를 빠짐없이 반영합니다.
         - 자연스럽고 전문적인 한국어로 작성합니다.
-        """,
-        text,
-        False
+        - 출력 내용이 길 경우 여러 문단으로 나누어 작성합니다.
+    """
+    start = time.perf_counter()
+
+    ocr_text = run_ocr(file)
+    preprocessed_text = text_preprocess(ocr_text)
+    chunks = generate_chunks(preprocessed_text) # 문서를 분할
+    chunked_summary = chunk_call(chunks)
+    summary = call_ollama(
+        instructions,
+        chunked_summary,
+        500
     )
+
+    total_time = time.perf_counter() - start
+    print(f"Total: {total_time:.2f}s")
+
     return SummarizeResponse(model=MODEL_NAME, summary=summary)
+
+def generate_chunks(text: str, chunk_size: int = 4000) -> list[str]:
+    # 문서를 문단 단위로 분리
+    paragraphs = text.split("\n\n")
+    # 완성된 청크를 저장
+    chunks = []
+    # 현재 생성 중인 청크
+    current = ""
+
+    for paragraph in paragraphs:
+        # 청크 크기를 초과하는 긴 문단은 4,000자 단위로 분할
+        while len(paragraph) > chunk_size:
+            chunks.append(paragraph[:chunk_size])
+            paragraph = paragraph[chunk_size:]
+
+        # 현재 청크에 문단을 추가해도 크기 제한을 넘지 않는지 확인
+        if len(current) + len(paragraph) + (2 if current else 0) <= chunk_size:
+            # 현재 청크에 문단 추가
+            # 기존 문단이 있다면 문단 사이에 줄바꿈 추가
+            current += ("\n\n" if current else "") + paragraph
+        else:
+            # 크기 제한을 초과하면 현재 청크를 저장
+            chunks.append(current)
+
+            # 현재 문단부터 새로운 청크 시작
+            current = paragraph
+
+    # 마지막으로 남은 청크 저장
+    if current:
+        chunks.append(current)
+
+    return chunks
+
+def chunk_call(chunks: list[str]) -> str:
+    chunk_instructions = """
+        역할: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
+        목표: 문서의 일부 내용을 간결하고 정확한 한국어로 요약합니다.
+
+        제약 사항:
+        - 중국어, 일본어, 영어로 응답하지 않습니다.
+        - 원문에 없는 내용을 임의로 추가하거나 추측하지 않습니다.
+        - 원문의 핵심 정보와 중요한 사실을 유지합니다.
+        - 문서의 일부만 제공되므로 전체 문서의 내용을 추측하지 않습니다.
+        - 지나치게 길게 이어지는 문장을 사용하지 않습니다.
+
+        출력 요구 사항:
+        - 입력된 내용에서 중요한 정보와 핵심 내용을 빠짐없이 반영합니다.
+        - 자연스럽고 전문적인 한국어로 작성합니다.
+        - 불필요한 반복이나 세부적인 표현은 줄입니다.
+    """
+    chunk_summaries = []
+    for chunk in chunks:
+        summary = call_ollama(
+            chunk_instructions,
+            chunk,
+            300
+        )
+        chunk_summaries.append(summary)
+    return "\n\n".join(chunk_summaries)
