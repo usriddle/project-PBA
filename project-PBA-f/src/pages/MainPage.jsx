@@ -6,6 +6,7 @@ import { requestSummary } from "../api/requestSummary";
 import PdfViewer from "../components/PdfViewer";
 import axios from "axios"
 import downloadSummary from "../utils/downloadSummary";
+import ModeBtn from "../components/ModeBtn";
 
 export const ALLOW_IMAGE_TYPES = [
     "image/png",
@@ -32,14 +33,14 @@ export function MainPage(){
         return waitInterval;
     }
 
-    async function requestUpload(){
+    async function requestUpload(mode="main"){
         const startTime = Date.now(); // 요청 시작 시간 기록
         const waitInterval = increaseWait(startTime);
         
         try {
             setContent(`파일 유효성 검사 통과, 로딩중...`);
             setStatus(1);
-            const response = await requestSummary(file);
+            const response = await requestSummary(file,mode);
             if(!response.data || !response.data.summary){
                 throw new Error("서버 데이터 응답 형식이 올바르지 않습니다.")
             }
@@ -93,7 +94,13 @@ export function MainPage(){
             <h1>문서 요약 시스템</h1>
             <div>
                 <FileSelector setFile={setFile} setContent={setContent} setStatus={setStatus}/>
-                {file && <button style={{"width":"70px"}} onClick={requestUpload} disabled={file && status==1}>요약 시작</button>}
+                {file && <>
+                    <ModeBtn btnName={"일반 요약 시작"} callback={requestUpload} mode={"main"} condition={file && status==1}/>
+                    <ModeBtn btnName={"짧은 요약 시작"} callback={requestUpload} mode={"short"} condition={file && status==1}/>
+                    <ModeBtn btnName={"쉬운 요약 시작"} callback={requestUpload} mode={"kid"} condition={file && status==1}/>
+                    <ModeBtn btnName={"영어 요약 시작"} callback={requestUpload} mode={"en"} condition={file && status==1}/>
+                    <ModeBtn btnName={"청크 요약 시작"} callback={requestUpload} mode={"chunk"} condition={file && status==1}/>
+                </>}
             </div>
             {status==2 && <><h3>소요 시간: {duration}초</h3><h2>요약결과</h2></>}
             {status==1 && <h3>대기시간: {wait}초</h3>}
