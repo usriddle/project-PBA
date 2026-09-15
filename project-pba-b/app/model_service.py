@@ -40,7 +40,6 @@ def call_ollama(system_instructions: str, message: str, output_token: int) -> st
     except httpx.HTTPError as e:
         raise RuntimeError(f"Ollama call failed: {e}")
 
-# summarize
 def summarize_main(file: UploadFile = File(...)) -> SummarizeResponse:
     # 역할, 목표, 제약 사항, 출력 요구 사항
     instructions = """
@@ -58,10 +57,7 @@ def summarize_main(file: UploadFile = File(...)) -> SummarizeResponse:
 
     start = time.perf_counter()
 
-    ocr_start = time.perf_counter()
     ocr_text = run_ocr(file) # ocr 실행
-    ocr_time = time.perf_counter() - ocr_start
-
     preprocessed_text = text_preprocess(ocr_text) # 전처리 실행
 
     ai_start = time.perf_counter()
@@ -74,14 +70,12 @@ def summarize_main(file: UploadFile = File(...)) -> SummarizeResponse:
     total_time = time.perf_counter() - start
 
     # OCR 및 모델 처리 시간 출력
-    print(f"OCR: {ocr_time:.2f}s")
     print(f"AI: {ai_time:.2f}s")
     print(f"Total: {total_time:.2f}s")
 
     return SummarizeResponse(model=MODEL_NAME, summary=summary)
 
-# summarize_chunk
-def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
+def summarize_chunk(file: UploadFile = File(...)) -> SummarizeResponse:
     instructions = """
         Role: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
         Task: 문서의 핵심 내용을 간결하고 정확한 한국어로 요약합니다.
@@ -92,6 +86,7 @@ def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
         Output Requirements:
         - 원문의 중요한 사실과 정보를 빠짐없이 반영합니다.
         - 자연스럽고 전문적인 한국어로 작성합니다.
+        - 불필요한 반복이나 세부적인 표현은 줄입니다.
         - 출력 내용이 길 경우 여러 문단으로 나누어 작성합니다.
     """
     start = time.perf_counter()
@@ -105,10 +100,104 @@ def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
         chunked_summary,
         500
     )
-
     total_time = time.perf_counter() - start
     print(f"Total: {total_time:.2f}s")
 
+    return SummarizeResponse(model=MODEL_NAME, summary=summary)
+
+def summarize_short(file: UploadFile = File(...)) -> SummarizeResponse:
+    instructions = """
+            Role: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
+            Task: 문서의 핵심 내용을 간결하고 정확한 한국어로 요약합니다.
+            Constraints:
+            - 중국어, 일본어, 영어로 응답하지 않습니다.
+            - 원문에 없는 내용을 임의로 추가하거나 추측하지 않습니다.
+            - 지나치게 길게 이어지는 문장을 사용하지 않습니다.
+            Output Requirements:
+            - 원문의 중요한 사실과 정보를 빠짐없이 반영합니다.
+            - 자연스럽고 전문적인 한국어로 작성합니다.
+            - 출력 내용이 길 경우 여러 문단으로 나누어 작성합니다.
+    """
+    start = time.perf_counter()
+
+    ocr_start = time.perf_counter()
+    ocr_text = run_ocr(file)
+    ocr_time = time.perf_counter() - ocr_start
+
+    preprocessed_text = text_preprocess(ocr_text)
+
+    ai_start = time.perf_counter()
+    summary = call_ollama(
+        instructions,
+        preprocessed_text,
+        300
+    )
+    ai_time = time.perf_counter() - ai_start
+    total_time = time.perf_counter() - start
+
+    print(f"OCR: {ocr_time:.2f}s")
+    print(f"AI: {ai_time:.2f}s")
+    print(f"Total: {total_time:.2f}s")
+
+    return SummarizeResponse(model=MODEL_NAME, summary=summary)
+
+def summarize_kid(file: UploadFile = File(...)) -> SummarizeResponse:
+    instructions = """
+            Role: 문서 요약을 지원하는 전문 AI 어시스턴트입니다.
+            Task: 문서의 핵심 내용을 간결하고 정확한 한국어로 요약합니다.
+            Constraints:
+            - 중국어, 일본어, 영어로 응답하지 않습니다.
+            - 원문에 없는 내용을 임의로 추가하거나 추측하지 않습니다.
+            - 지나치게 길게 이어지는 문장을 사용하지 않습니다.
+            Output Requirements:
+            - 원문의 중요한 사실과 정보를 빠짐없이 반영합니다.
+            - 자연스럽고 전문적인 한국어로 작성합니다.
+            - 출력 내용이 길 경우 여러 문단으로 나누어 작성합니다.
+    """
+    start = time.perf_counter()
+
+    ocr_start = time.perf_counter()
+    ocr_text = run_ocr(file)
+    ocr_time = time.perf_counter() - ocr_start
+
+    preprocessed_text = text_preprocess(ocr_text)
+
+    ai_start = time.perf_counter()
+    summary = call_ollama(
+        instructions,
+        preprocessed_text,
+        500
+    )
+    ai_time = time.perf_counter() - ai_start
+    total_time = time.perf_counter() - start
+
+    print(f"OCR: {ocr_time:.2f}s")
+    print(f"AI: {ai_time:.2f}s")
+    print(f"Total: {total_time:.2f}s")
+
+    return SummarizeResponse(model=MODEL_NAME, summary=summary)
+
+# summarize_en
+def summarize(file: UploadFile = File(...)) -> SummarizeResponse:
+    instructions = """
+        Role: You are a professional AI assistant that supports document summarization.
+        Task: Summarize the key contents of the document concisely and accurately in English.
+        Constraints:
+        - Do not respond in Chinese, Japanese, Korean, or any language that is not English.
+        - Do not add or speculate on information that is not present in the original document.
+        - Avoid excessively long sentences.
+        Output Requirements:
+        - Include all important facts and key information from the original document.
+        - Write in natural and professional English.
+        - If the output is long, divide it into multiple paragraphs.
+    """
+    ocr_text = run_ocr(file)
+    preprocessed_text = text_preprocess(ocr_text)
+    summary = call_ollama(
+        instructions,
+        preprocessed_text,
+        500
+    )
     return SummarizeResponse(model=MODEL_NAME, summary=summary)
 
 def generate_chunks(text: str, chunk_size: int = 4000) -> list[str]:
