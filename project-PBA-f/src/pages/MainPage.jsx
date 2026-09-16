@@ -15,12 +15,6 @@ export const ALLOW_IMAGE_TYPES = [
     "image/webp"
 ];
 
-export const ALLOW_IMAGE_TYPES = [
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "image/webp"
-];
 
 export function MainPage(){
     const [file, setFile] = useState(null);
@@ -95,11 +89,6 @@ export function MainPage(){
         finally{
             clearInterval(waitInterval);
             setCurInteval(null);
-            // 2. 최종 소요 시간 계산 (초 단위)
-            const finalDuration = Math.floor((Date.now() - startTime) / 1000);
-            setDuration(finalDuration);
-            setWait(0);
-            clearInterval(waitInterval);
             // 2. 최종 소요 시간 계산 (초 단위)
             const finalDuration = Math.floor((Date.now() - startTime) / 1000);
             setDuration(finalDuration);
