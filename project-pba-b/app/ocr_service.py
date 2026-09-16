@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from fastapi import HTTPException, UploadFile
 from paddleocr import PPStructureV3
+import re
 
 ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp"}
 
@@ -23,10 +24,9 @@ def run_paddle_ocr(file: UploadFile) -> dict[str, Any]:
         results = list(
             pipeline.predict(input=str(temp_path))
         )
-        
         validate_result(results)
         page_details = process_pages(results)
-        text = process_markdown(page_details.get("pages"))
+        text = extract_text(page_details.get("pages"))
 
         return {
             "text": text,
@@ -169,31 +169,21 @@ def process_pages(results: list[str]) -> dict[str, Any]:
         "pages": pages
     }
 
-def process_markdown(pages: dict[str, Any]) -> str:
-    markdown_parts = [
-        page["markdown"].strip()
-        for page in pages
-        if page.get("markdown")
-        and page["markdown"].strip()
-    ]
-    
-    # if markdown_parts:
-    #     text = "\n\n".join(markdown_parts)
+def extract_text(pages: dict[str, Any]) -> str:
+    text_parts = []
+    for page in pages:
+        markdown = page.get("markdown", "").strip()
+        text_only = re.sub(r"<[^>]+>", "", markdown).strip()
 
-    # else:
-    #     text = "\n".join(
-    #         block["text"]
-    #         for page in pages
-    #         for block in page["text_blocks"]
-    #         if block.get("text")
-    #     )
-    # return text
-    return "\n".join(
-        block["text"]
-        for page in pages
-        for block in page["text_blocks"]
-        if block.get("text")
-    )
+        if text_only:
+            text_parts.append(markdown)
+        else:
+            text_parts.extend(
+                block["text"]
+                for block in page.get("text_blocks", [])
+                if block.get("text")
+            )
+    return "\n\n".join(text_parts)
 
 def create_temp_path(file: UploadFile) -> str:
     suffix = Path(file.filename).suffix.lower()
