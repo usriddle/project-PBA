@@ -1,8 +1,10 @@
 import { validatePdf } from "../utils/validatePdf";
 
-export default function FileSelector({ setFile, setContent,setStatus }) {
+export default function FileSelector({ setFile, setContent,statusHook }) {
+  const [status, setStatus] = statusHook;
   return (
     <input
+      disabled ={status==1}
       type="file"
       accept="application/pdf"
       onChange={(event) => {
