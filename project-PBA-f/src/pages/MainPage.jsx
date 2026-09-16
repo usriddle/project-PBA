@@ -15,13 +15,27 @@ export const ALLOW_IMAGE_TYPES = [
     "image/webp"
 ];
 
+export const ALLOW_IMAGE_TYPES = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp"
+];
+
 export function MainPage(){
     const [file, setFile] = useState(null);
     const [content, setContent] = useState("요약할 문서를 업로드해주세요.");
-    //코드 / 0:기본 / 1: 업로드 후 대기 / 2: 요약 성공 /3: 오류
+    const [result, setResult] = useState("요약 대기중... \n다른 작업을 원하시면 일단 취소 버튼을 눌러주세요.");
+    //코드 / 0:기본 / 1: 업로드 후 대기 / 2: 요약 성공 /3: 오류 /4:취소
     const [status, setStatus] = useState(0);
     const [wait, setWait] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [curInterval,setCurInteval] =useState(null);
+    const [open,setOpen] =useState(true)
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
 
     // 1. 타이머와 대기 시간을 함께 관리하는 함수
     function increaseWait(startTime) {
@@ -36,11 +50,13 @@ export function MainPage(){
     async function requestUpload(mode="main"){
         const startTime = Date.now(); // 요청 시작 시간 기록
         const waitInterval = increaseWait(startTime);
+        setCurInteval(waitInterval);
+
         
         try {
-            setContent(`파일 유효성 검사 통과, 로딩중...`);
+            setContent(`파일 유효성 검사 통과, 요약 종류를 선택하세요.`);
             setStatus(1);
-            const response = await requestSummary(file,mode);
+            const response = await requestSummary(file,mode,signal);
             if(!response.data || !response.data.summary){
                 throw new Error("서버 데이터 응답 형식이 올바르지 않습니다.")
             }
@@ -48,7 +64,7 @@ export function MainPage(){
             // 성공한 경우
             const responseSummary = response.data.summary;
             downloadSummary(responseSummary, file.name);
-            setContent(responseSummary);
+            setResult(responseSummary);
             setStatus(2);
         } catch (error) {
             setStatus(3);
@@ -78,6 +94,12 @@ export function MainPage(){
         }
         finally{
             clearInterval(waitInterval);
+            setCurInteval(null);
+            // 2. 최종 소요 시간 계산 (초 단위)
+            const finalDuration = Math.floor((Date.now() - startTime) / 1000);
+            setDuration(finalDuration);
+            setWait(0);
+            clearInterval(waitInterval);
             // 2. 최종 소요 시간 계산 (초 단위)
             const finalDuration = Math.floor((Date.now() - startTime) / 1000);
             setDuration(finalDuration);
@@ -93,20 +115,28 @@ export function MainPage(){
         "gap":"10px"}}>
             <h1>문서 요약 시스템</h1>
             <div>
-                <FileSelector setFile={setFile} setContent={setContent} setStatus={setStatus}/>
-                {file && <>
-                    <ModeBtn btnName={"일반 요약 시작"} callback={requestUpload} mode={"main"} condition={file && status==1}/>
-                    <ModeBtn btnName={"짧은 요약 시작"} callback={requestUpload} mode={"short"} condition={file && status==1}/>
-                    <ModeBtn btnName={"쉬운 요약 시작"} callback={requestUpload} mode={"kid"} condition={file && status==1}/>
-                    <ModeBtn btnName={"영어 요약 시작"} callback={requestUpload} mode={"en"} condition={file && status==1}/>
-                    <ModeBtn btnName={"청크 요약 시작"} callback={requestUpload} mode={"chunk"} condition={file && status==1}/>
-                </>}
+                <FileSelector setFile={setFile} setContent={setContent} statusHook={[status, setStatus]}/>
+                <button onClick={()=>{
+                    controller.abort();
+                    setStatus(4);
+                    clearInterval(curInterval);
+                    setCurInteval(null);
+                    setWait(0);
+                    setOpen(true);
+                }} style={{float:"right", width:"50px", height:"30px"}} className="button button--winona button--border-thin button--round-s">취소</button>
             </div>
             {status==2 && <><h3>소요 시간: {duration}초</h3><h2>요약결과</h2></>}
             {status==1 && <h3>대기시간: {wait}초</h3>}
-            <SummaryViewer content={content}/>
-            {file && file.type == "application/pdf" && <PdfViewer file={file}/>}
-            {file && ALLOW_IMAGE_TYPES.includes(file.type) && <ImageViewer file={file}/>}
+            <h4>{content}</h4>
+            <div style={{display:"flex", width:"100%"}}>
+                <div style={{width:"50%"}}>
+                    {file && file.type == "application/pdf" && <PdfViewer file={file}/>}
+                    {file && ALLOW_IMAGE_TYPES.includes(file.type) && <ImageViewer file={file}/>}
+                </div>
+                <div style={{width:"50%"}}>
+                    {file && <SummaryViewer result={result} requestUpload={requestUpload} status={status} openHook={[open,setOpen]}/>}
+                </div>
+            </div>
         </div>
     )
 }
