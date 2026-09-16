@@ -1,16 +1,17 @@
-from fastapi import APIRouter, UploadFile, File
-from app import model_service
-from enum import Enum
+from fastapi import APIRouter, UploadFile, File, Depends
+from sqlalchemy.orm import Session
 
-class SumType(str, Enum):
-    MAIN = "main"
-    SHORT = "short"
-    KID = "kid"
-    EN = "en"
-    CHUNK = "chunk"
+from app.database import get_db
+from app.model_service import choose_summary
+from app.schemas import SumType
 
 router = APIRouter()
 
+
 @router.post("/summary/{sum_type}")
-async def choose_summary(sum_type: SumType, file: UploadFile = File(...)):
-    return model_service.choose_summary(file, sum_type)
+def summarize(
+    sum_type: SumType,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    return choose_summary(file, sum_type, db)
