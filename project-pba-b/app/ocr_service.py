@@ -16,7 +16,7 @@ pipeline = PPStructureV3(
     lang="korean"
 )
 
-def run_paddle_ocr(file: UploadFile) -> str:
+def run_paddle_ocr(file: UploadFile) -> dict[str, Any]:
     validate_ocr(file)    
     try:
         temp_path = create_temp_path(file)
@@ -126,16 +126,11 @@ def validate_result(results: list[str]) -> None:
         )
 
 def process_pages(results: list[str]) -> dict[str, Any]:
-    # 페이지별 OCR 결과
     pages = [
         parse_result(res, page_number)
         for page_number, res in enumerate(results, start=1)
     ]
 
-    # -------------------------
-    # 원본 페이지 수
-    # -------------------------
-    # PDF인 경우 PaddleOCR 자체 page_count 우선 사용
     original_page_count = next(
         (
             page["page_count"]
@@ -144,20 +139,13 @@ def process_pages(results: list[str]) -> dict[str, Any]:
         ),
         None,
     )
-
     page_count = original_page_count or len(pages)
 
-    # -------------------------
-    # 텍스트 블록 수
-    # -------------------------
     text_block_count = sum(
         len(page["text_blocks"])
         for page in pages
     )
 
-    # -------------------------
-    # 이미지 수
-    # -------------------------
     image_count = sum(
         1
         for page in pages
@@ -166,9 +154,6 @@ def process_pages(results: list[str]) -> dict[str, Any]:
         in {"image", "figure"}
     )
 
-    # -------------------------
-    # 표 수
-    # -------------------------
     table_count = sum(
         1
         for page in pages
@@ -185,7 +170,6 @@ def process_pages(results: list[str]) -> dict[str, Any]:
     }
 
 def process_markdown(pages: dict[str, Any]) -> str:
-    # Markdown이 있으면 Markdown 우선 사용
     markdown_parts = [
         page["markdown"].strip()
         for page in pages
@@ -193,21 +177,26 @@ def process_markdown(pages: dict[str, Any]) -> str:
         and page["markdown"].strip()
     ]
     
-    if markdown_parts:
-        text = "\n\n".join(markdown_parts)
+    # if markdown_parts:
+    #     text = "\n\n".join(markdown_parts)
 
-    else:
-        text = "\n".join(
-            block["text"]
-            for page in pages
-            for block in page["text_blocks"]
-            if block.get("text")
-        )
-    return text
+    # else:
+    #     text = "\n".join(
+    #         block["text"]
+    #         for page in pages
+    #         for block in page["text_blocks"]
+    #         if block.get("text")
+    #     )
+    # return text
+    return "\n".join(
+        block["text"]
+        for page in pages
+        for block in page["text_blocks"]
+        if block.get("text")
+    )
 
 def create_temp_path(file: UploadFile) -> str:
     suffix = Path(file.filename).suffix.lower()
-    # UploadFile -> 실제 임시 파일로 저장
     with tempfile.NamedTemporaryFile(
         delete=False,
         suffix=suffix
