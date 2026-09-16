@@ -2,8 +2,6 @@ import httpx
 import time
 from app.schemas import SummarizeResponse, SumType
 from app.ocr_service import run_paddle_ocr
-from app.preprocessing import text_preprocess
-
 from fastapi import File, UploadFile
 
 OLLAMA_CHAT_URL = (
@@ -271,5 +269,4 @@ def chunk_call(chunks: list[str]) -> str:
     return "\n\n".join(chunk_summaries)
 
 def process_text(file: UploadFile = File(...)) -> str:
-    ocr_text = run_paddle_ocr(file)["text"]
-    return text_preprocess(ocr_text)
+    return run_paddle_ocr(file)["text"]
