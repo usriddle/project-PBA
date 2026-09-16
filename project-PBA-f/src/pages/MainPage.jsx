@@ -1,10 +1,19 @@
 import {useState } from "react";
 import FileSelector from "../components/FileSelector";
 import SummaryViewer from "../components/SummaryViewer";
+import ImageViewer from "../components/ImageViewer"
 import { requestSummary } from "../api/requestSummary";
 import PdfViewer from "../components/PdfViewer";
 import axios from "axios"
 import downloadSummary from "../utils/downloadSummary";
+import ModeBtn from "../components/ModeBtn";
+
+export const ALLOW_IMAGE_TYPES = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp"
+];
 
 export const ALLOW_IMAGE_TYPES = [
     "image/png",
@@ -28,12 +37,14 @@ export function MainPage(){
     const signal = controller.signal;
 
 
-    function increaseWait(){
-        const waitInterval = setInterval(()=>{
-            setWait((cur)=>(cur+1));
-        },1000)
+    // 1. 타이머와 대기 시간을 함께 관리하는 함수
+    function increaseWait(startTime) {
+        const waitInterval = setInterval(() => {
+            const currentWait = Math.floor((Date.now() - startTime) / 1000);
+            setWait(currentWait);
+        }, 1000);
 
-        return waitInterval
+        return waitInterval;
     }
 
     async function requestUpload(mode="main"){
@@ -47,7 +58,6 @@ export function MainPage(){
             setStatus(1);
             const response = await requestSummary(file,mode,signal);
             if(!response.data || !response.data.summary){
-                //error를 발생시켜 catch 문에서 오류 메시지 처리
                 throw new Error("서버 데이터 응답 형식이 올바르지 않습니다.")
             }
 
@@ -90,6 +100,10 @@ export function MainPage(){
             setDuration(finalDuration);
             setWait(0);
             clearInterval(waitInterval);
+            // 2. 최종 소요 시간 계산 (초 단위)
+            const finalDuration = Math.floor((Date.now() - startTime) / 1000);
+            setDuration(finalDuration);
+            setWait(0);
         }
     }
     
@@ -124,5 +138,5 @@ export function MainPage(){
                 </div>
             </div>
         </div>
-        )
+    )
 }

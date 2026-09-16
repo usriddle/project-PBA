@@ -1,5 +1,11 @@
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
-
+export const ALLOW_FILE_TYPES = [
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp"
+];
 export function validatePdf(file){
     if(!file){
         return {
@@ -7,10 +13,10 @@ export function validatePdf(file){
             "message": "파일을 먼저 선택해주세요."
         };
     }
-    else if(file.type != "application/pdf"){
+    else if(!ALLOW_FILE_TYPES.includes(file.type)){
         return {
             "code":-1,
-            "message": "pdf 파일을 선택해주세요. 다른 유형의 파일은 지원되지 않습니다."
+            "message": "지원되는 파일 유형은 다음과 같습니다. pdf, png, jpg, jpeg, webp"
         };
     }   
     else if(file.size>MAX_FILE_SIZE){

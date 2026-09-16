@@ -137,3 +137,5 @@ dist
 
 #추가 ignore
 .venv
+__pycache__
+uploads/
