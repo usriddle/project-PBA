@@ -1,8 +1,11 @@
 import httpx
 import time
+import hashlib
 from app.schemas import SummarizeResponse, SumType
 from app.ocr_service import run_paddle_ocr
-from fastapi import File, UploadFile
+from app.models import Document
+from fastapi import File, UploadFile, HTTPException
+from pathlib import Path
 
 OLLAMA_CHAT_URL = (
     "http://localhost:11434/api/chat"
@@ -39,22 +42,82 @@ def call_ollama(system_instructions: str, message: str, output_token: int) -> st
     except httpx.HTTPError as e:
         raise RuntimeError(f"Ollama call failed: {e}")
 
-def choose_summary(file: UploadFile, sum_type: SumType):
-    if sum_type is SumType.MAIN:
-        return summarize_main(file)
-    elif sum_type is SumType.SHORT:
-        return summarize_short(file) # change
-    elif sum_type is SumType.KID:
-        return summarize_kid(file)
-    elif sum_type is SumType.EN:
-        return summarize_en(file)
-    elif sum_type is SumType.CHUNK:
-        return summarize_chunk(file)
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"지원하지 않는 요약 타입입니다: {sum_type}"
-        )
+def choose_summary(file: UploadFile, sum_type: SumType, db):
+    upload_dir = Path("uploads")
+    upload_dir.mkdir(exist_ok=True)
+
+    original_filename = file.filename or "unknown.pdf"
+
+    # 파일 내용 읽기
+    file_content = file.file.read()
+
+    # 파일 해시 생성
+    file_hash = hashlib.sha256(file_content).hexdigest()
+
+    # 파일 포인터 초기화
+    file.file.seek(0)
+
+    # 파일명 중복 방지
+    import uuid
+
+    safe_filename = Path(original_filename).name
+    saved_filename = f"{uuid.uuid4().hex}_{safe_filename}"
+    saved_path = upload_dir / saved_filename
+
+    # 파일 저장
+    saved_path.write_bytes(file_content)
+
+    # 항상 새로운 Document 생성
+    document = Document(
+        original_filename=original_filename,
+        file_path=str(saved_path),
+        file_hash=file_hash,
+        sum_type=sum_type.value,
+        status="processing",
+    )
+
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    file.file.seek(0)
+
+    try:
+        # 요약 실행
+        if sum_type is SumType.MAIN:
+            result = summarize_main(file)
+
+        elif sum_type is SumType.SHORT:
+            result = summarize_short(file)
+
+        elif sum_type is SumType.KID:
+            result = summarize_kid(file)
+
+        elif sum_type is SumType.EN:
+            result = summarize_en(file)
+
+        elif sum_type is SumType.CHUNK:
+            result = summarize_chunk(file)
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"지원하지 않는 요약 타입입니다: {sum_type}"
+            )
+
+        # 요약 결과 DB 저장
+        document.summary = result.summary
+        document.status = "completed"
+
+        db.commit()
+        db.refresh(document)
+
+        return result
+
+    except Exception:
+        document.status = "failed"
+        db.commit()
+        raise
 
 def summarize_main(file: UploadFile = File(...)) -> SummarizeResponse:
     instructions = """
