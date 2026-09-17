@@ -1,6 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Depends
 from sqlalchemy.orm import Session
-
 from app.database import get_db
 from app.model_service import choose_summary
 from app.schemas import SumType
