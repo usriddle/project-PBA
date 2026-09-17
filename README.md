@@ -47,4 +47,13 @@
 ### 4. DB
 <img width="760" height="420" alt="Database Connection" src="https://github.com/user-attachments/assets/7882d204-fc81-4b3d-b85a-f7db8e740fef" />
 
+## UI 분석
+
+<img width="960" height="540" alt="Screen1" src="https://github.com/user-attachments/assets/91bf413c-977d-443b-96f0-bd73ad4c2b23" />
+
+<img width="960" height="540" alt="Screen2" src="https://github.com/user-attachments/assets/3b90873b-f759-4165-b2c1-0e73e5261fa3" />
+
+<img width="960" height="540" alt="Screen3" src="https://github.com/user-attachments/assets/ef606d70-9373-4614-a797-e1a47e211982" />
+
+<img width="960" height="540" alt="Screen4" src="https://github.com/user-attachments/assets/bf5a82d8-0890-49da-98a6-1e9195c94084" />
 
