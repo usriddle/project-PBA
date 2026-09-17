@@ -1,13 +1,15 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from dotenv import load_dotenv
+import os
 
-
+load_dotenv()
 # MySQL 접속 정보
-DB_USER = "root"
-DB_PASSWORD = "123456"
-DB_HOST = "localhost"
-DB_PORT = 3306
-DB_NAME = "pdf_summary"
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
 
 
 DATABASE_URL = (

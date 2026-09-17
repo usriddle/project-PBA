@@ -2,8 +2,7 @@ from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.database import Base
+from app.database import Base, engine
 
 
 class Document(Base):
@@ -26,13 +25,13 @@ class Document(Base):
     )
 
     file_hash: Mapped[str | None] = mapped_column(
-    String(64),
-    nullable=True,
+        String(64),
+        nullable=True,
     )
 
     sum_type: Mapped[str | None] = mapped_column(
-    String(20),
-    nullable=True,
+        String(20),
+        nullable=True,
     )
 
     summary: Mapped[str | None] = mapped_column(
@@ -47,14 +46,16 @@ class Document(Base):
     )
 
     created_at: Mapped[datetime] = mapped_column(
-    DateTime,
-    nullable=False,
-    server_default=func.current_timestamp(),
-)
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+    )
 
-updated_at: Mapped[datetime] = mapped_column(
-    DateTime,
-    nullable=False,
-    server_default=func.current_timestamp(),
-    server_onupdate=func.current_timestamp(),
-)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.current_timestamp(),
+        server_onupdate=func.current_timestamp(),
+    )
+
+Base.metadata.create_all(bind=engine)
